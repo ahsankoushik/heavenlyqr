@@ -7,6 +7,7 @@ import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { notFound } from "./middlewares/notFound.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+import { apiRouter } from "./router/index.js";
 
 
 export function createApp(): Express {
@@ -20,7 +21,7 @@ export function createApp(): Express {
     app.use(express.urlencoded({ extended: true }));
     app.use(pinoHttp({ logger }));
 
-    // TODO :: add routes
+    app.use("/api/v1",apiRouter)
 
 
     app.use(notFound);
