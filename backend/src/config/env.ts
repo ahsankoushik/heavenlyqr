@@ -17,6 +17,8 @@ const envSchema = z.object({
 
     WORKER_CONCURRENCY: z.coerce.number().int().positive().default(4),
     QR_JOB_QUEUE_NAME: z.string().default("qr-generation"),
+
+    STORAGE_DIR: z.string().default("storage"),
 });
 
 const parsed = envSchema.safeParse(process.env);

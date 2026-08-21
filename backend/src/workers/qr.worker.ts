@@ -4,18 +4,18 @@ import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
 import { createRedisConnection } from "../config/redis.js";
 import { PROGRESS_CHANNEL } from "../ws/socket.js";
-import { qrGenerationPreProcess } from "../services/qrgeneration.service.js";
+import { processRequest } from "../services/qrgeneration.service.js";
+import { ProgressStatus } from "../types/progressStatus.js";
 
-const progressPublisher = createRedisConnection("pubsub:progress:publisher");
+export const progressPublisher = createRedisConnection("pubsub:progress:publisher");
 
 export async function closeProgressPublisher(): Promise<void> {
     await progressPublisher.quit();
 }
 
-type ProgressStatus = "PROCESSING" | "COMPLETED" | "FAILED";
 
-async function publishProgress(requestId: string, status: ProgressStatus): Promise<void> {
-    await progressPublisher.publish(PROGRESS_CHANNEL, JSON.stringify({ requestId, status }));
+async function publishProgress(requestId: string, status: ProgressStatus, completed: number = 0): Promise<void> {
+    await progressPublisher.publish(PROGRESS_CHANNEL, JSON.stringify({ requestId, status, completed }));
 }
 
 export function createQrGenerationWorker(): Worker<{ requestId: string }> {
@@ -24,12 +24,8 @@ export function createQrGenerationWorker(): Worker<{ requestId: string }> {
         async (job: Job<{ requestId: string }>) => {
             logger.info({ jobId: job.id, data: job.data }, "Processing QR generation job");
             await publishProgress(job.data.requestId, "PROCESSING");
-            qrGenerationPreProcess(job.data.requestId);
-            // TODO :: 
-            
-            // crete qr
-            // signal
-            // 
+            await processRequest(job.data.requestId,publishProgress);
+
         },
         {
             connection: createRedisConnection("queue:qr-generation:worker"),
