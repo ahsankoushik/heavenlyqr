@@ -119,5 +119,5 @@ export async function processRequest(requestId: string, onProgress: (requestId: 
     }
 
     await prisma.serviceRequest.update({ where: { id: requestId }, data: { completedItems: done }, })
-    onProgress(requestId, "PROCESSING", done)
+    onProgress(requestId, "COMPLETED", done)
 }
