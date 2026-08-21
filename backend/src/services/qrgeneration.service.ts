@@ -48,13 +48,17 @@ async function zipRequestDirectory(requestId: string): Promise<string> {
 
 
 async function qrGenerationPreProcess(requestId: string) {
+    // just to make sure we don't pick up cancelled and make is processing
+    const { count } = await prisma.serviceRequest.updateMany({
+        where: { id: requestId, status: { not: "CANCELLED" } },
+        data: { status: "PROCESSING" },
+    });
+    if (count === 0) {
+        return null;
+    }
+
     const request = await prisma.serviceRequest.findUniqueOrThrow({
         where: { id: requestId },
-    });
-
-    await prisma.serviceRequest.update({
-        where: { id: requestId },
-        data: { status: "PROCESSING" },
     });
 
     await prisma.qrItem.createMany({
@@ -73,9 +77,23 @@ async function qrGenerationPreProcess(requestId: string) {
     return request;
 }
 
+// when cancelled gets the status
+async function isCancelled(requestId: string): Promise<boolean> {
+    const current = await prisma.serviceRequest.findUniqueOrThrow({
+        where: { id: requestId },
+        select: { status: true },
+    });
+    return current.status === "CANCELLED";
+}
 
 export async function processRequest(requestId: string, onProgress: (requestId: string, status: ProgressStatus, completed?: number) => Promise<void>) {
-    const request = await qrGenerationPreProcess(requestId)
+    const request = await qrGenerationPreProcess(requestId);
+    if (!request) {
+        // Cancelled before the worker ever started it.
+        await onProgress(requestId, "CANCELLED", 0);
+        return;
+    }
+
     const items = await prisma.qrItem.findMany({
         where: {
             serviceRequestId: requestId,
@@ -83,7 +101,15 @@ export async function processRequest(requestId: string, onProgress: (requestId: 
         },
     });
     let done = 0;
+    let failed = 0;
+    let cancelled = false;
+
     for (const item of items) {
+        if (await isCancelled(requestId)) {
+            cancelled = true;
+            break;
+        }
+
         try {
             await prisma.qrItem.update({
                 where: { id: item.id },
@@ -98,8 +124,9 @@ export async function processRequest(requestId: string, onProgress: (requestId: 
                     imagePath,
                 },
             });
-            done++
-            onProgress(requestId, "PROCESSING", done)
+            done++;
+            await prisma.serviceRequest.update({ where: { id: requestId }, data: { completedItems: done } });
+            await onProgress(requestId, "PROCESSING", done);
         } catch (error) {
             await prisma.qrItem.update({
                 where: { id: item.id },
@@ -108,7 +135,18 @@ export async function processRequest(requestId: string, onProgress: (requestId: 
                     errorMessage: String(error),
                 },
             });
+            failed++;
+            await prisma.serviceRequest.update({ where: { id: requestId }, data: { failedItems: failed } });
         }
+    }
+
+    if (cancelled) {
+        await prisma.qrItem.updateMany({
+            where: { serviceRequestId: requestId, status: "PENDING" },
+            data: { status: "CANCELLED" },
+        });
+        await onProgress(requestId, "CANCELLED", done);
+        return;
     }
 
     try {
@@ -118,6 +156,10 @@ export async function processRequest(requestId: string, onProgress: (requestId: 
         logger.error({ requestId, err: error }, "Failed to zip QR images for request");
     }
 
-    await prisma.serviceRequest.update({ where: { id: requestId }, data: { completedItems: done }, })
-    onProgress(requestId, "COMPLETED", done)
+    const finalStatus = failed === 0 ? "COMPLETED" : done === 0 ? "FAILED" : "PARTIALLY_FAILED";
+    await prisma.serviceRequest.update({
+        where: { id: requestId },
+        data: { status: finalStatus, completedItems: done, failedItems: failed },
+    });
+    await onProgress(requestId, finalStatus === "COMPLETED" ? "COMPLETED" : "FAILED", done);
 }

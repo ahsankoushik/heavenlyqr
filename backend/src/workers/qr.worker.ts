@@ -34,10 +34,11 @@ export function createQrGenerationWorker(): Worker<{ requestId: string }> {
     );
 
     worker.on("completed", (job) => {
-        void publishProgress(job.data.requestId, "COMPLETED");
         logger.info({ jobId: job.id }, "Job completed");
     });
+
     worker.on("failed", (job, err) => {
+
         if (job) {
             void publishProgress(job.data.requestId, "FAILED");
         }

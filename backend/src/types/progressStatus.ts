@@ -1,2 +1,2 @@
 
-export type ProgressStatus = "PROCESSING" | "COMPLETED" | "FAILED";
+export type ProgressStatus = "PROCESSING" | "COMPLETED" | "FAILED" | "CANCELLED";

@@ -11,3 +11,13 @@ export const qrGenerationQueue = new Queue(env.QR_JOB_QUEUE_NAME, {
         removeOnFail: 5000,
     },
 });
+
+// for pending jobs only
+export async function removeQueuedJob(requestId: string): Promise<boolean> {
+    const job = await qrGenerationQueue.getJob(requestId);
+    if (!job) return false;
+    if (await job.isActive()) return false;
+
+    await job.remove();
+    return true;
+}
