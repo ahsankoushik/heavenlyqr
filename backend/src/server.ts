@@ -7,9 +7,12 @@ import { createServer } from "http";
 import { createApp } from "./app.js";
 import { env } from "process";
 import { logger } from "./config/logger.js";
+import { connectDatabase, disconnectDatabase } from "./config/db.js";
 
 
 async function main(): Promise<void> {
+    await connectDatabase();
+
     const app = createApp();
     const httpServer = createServer(app);
     // attach socketio
@@ -23,7 +26,7 @@ async function main(): Promise<void> {
     const shutdown = async (signal: string): Promise<void> => {
         logger.info({ signal }, "Shutting down API listener...");
         httpServer.close();
-        // kill db conn
+        await disconnectDatabase();
         process.exit(0);
     };
 
