@@ -1,14 +1,68 @@
-
 generator client {
-  provider = "prisma-client-js"
+    provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
 }
 
-// model ServiceRequest {
-//   id        String   @id @default(uuid())
-//   createdAt DateTime @default(now())
-// }
+// FR-7 / FR-10: request-level lifecycle, transitioned by the worker as
+// items complete, never directly by client calls.
+enum RequestStatus {
+    PENDING
+    PROCESSING
+    COMPLETED
+    PARTIALLY_FAILED
+    FAILED
+    CANCELLED
+}
+
+enum QrItemStatus {
+    PENDING
+    PROCESSING
+    COMPLETED
+    FAILED
+    CANCELLED
+}
+
+model ServiceRequest {
+    id           String        @id @default(uuid())
+    url          String
+    idRangeStart Int
+    idRangeEnd   Int
+    status       RequestStatus @default(PENDING)
+
+    totalItems     Int
+    completedItems Int @default(0)
+    failedItems    Int @default(0)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    items QrItem[]
+
+    @@index([status])
+    @@index([createdAt])
+    @@index([updatedAt])
+    @@index([url])
+}
+
+model QrItem {
+    id     String @id @default(uuid())
+    itemId Int 
+
+    status       QrItemStatus @default(PENDING)
+    imagePath    String?
+    errorMessage String?
+    attempts     Int          @default(0) 
+
+    serviceRequestId String
+    serviceRequest   ServiceRequest @relation(fields: [serviceRequestId], references: [id], onDelete: Cascade)
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    @@unique([serviceRequestId, itemId])
+    @@index([serviceRequestId, status])
+}

@@ -5,9 +5,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { createServiceRequst } from "../controllers/service.controller.js";
 
 
-
+// /api/v1/service
 export const serviceRouter = Router()
-
 
 
 serviceRouter.post("/request", validateRequest({ body: createServiceRequestSchema }), asyncHandler(createServiceRequst))

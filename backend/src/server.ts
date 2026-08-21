@@ -8,6 +8,7 @@ import { createApp } from "./app.js";
 import { env } from "process";
 import { logger } from "./config/logger.js";
 import { connectDatabase, disconnectDatabase } from "./config/db.js";
+import { initSocketServer } from "./ws/socket.js";
 
 
 async function main(): Promise<void> {
@@ -15,7 +16,7 @@ async function main(): Promise<void> {
 
     const app = createApp();
     const httpServer = createServer(app);
-    // attach socketio
+    const io = initSocketServer(httpServer);
 
     httpServer.listen(env.PORT, () => {
         logger.info(`API listener running on port ${env.PORT} (${env.NODE_ENV})`);
@@ -25,6 +26,7 @@ async function main(): Promise<void> {
     // gracefull shutdown
     const shutdown = async (signal: string): Promise<void> => {
         logger.info({ signal }, "Shutting down API listener...");
+        io.close();
         httpServer.close();
         await disconnectDatabase();
         process.exit(0);
