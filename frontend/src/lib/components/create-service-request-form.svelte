@@ -35,7 +35,7 @@
 	let clientErrors = $state<CreateServiceRequestFieldErrors>({});
 	let submitting = $state(false);
 
-    // zod validation errors
+	// zod validation errors
 	let errors = $derived({ ...clientErrors, ...(form?.errors ?? {}) });
 
 	const handleSubmit: SubmitFunction = ({ cancel }) => {
@@ -125,7 +125,7 @@
 		</div>
 	</div>
 
-	<Button type="submit" disabled={submitting} class="gap-1.5">
+	<Button type="submit" disabled={submitting} class="cursor-pointer gap-1.5">
 		{#if submitting}
 			<LoaderIcon class="size-4 animate-spin" />
 			Creating…

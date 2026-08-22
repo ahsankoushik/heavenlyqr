@@ -35,7 +35,10 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
     void subscriber.subscribe(PROGRESS_CHANNEL);
 
     subscriber.on("message", (_channel, message) => {
-        const progress = JSON.parse(message) as { requestId: string; status: ProgressStatus; completed: number };
+        const progress = JSON.parse(message) as { requestId: string; status: ProgressStatus; completed: number, startEvent: boolean };
+        if(progress.startEvent){
+            io.emit("operator",progress);
+        }
         io.to(`request:${progress.requestId}`).emit("progress", progress);
     });
 

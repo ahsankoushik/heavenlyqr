@@ -1,5 +1,13 @@
-export type RequestStatus =
-	'PENDING' | 'PROCESSING' | 'COMPLETED' | 'PARTIALLY_FAILED' | 'FAILED' | 'CANCELLED';
+export const REQUEST_STATUSES = [
+	'PENDING',
+	'PROCESSING',
+	'COMPLETED',
+	'PARTIALLY_FAILED',
+	'FAILED',
+	'CANCELLED'
+] as const;
+
+export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
 export type QrItemStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 

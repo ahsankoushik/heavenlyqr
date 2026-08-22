@@ -14,8 +14,8 @@ export async function closeProgressPublisher(): Promise<void> {
 }
 
 
-async function publishProgress(requestId: string, status: ProgressStatus, completed: number = 0): Promise<void> {
-    await progressPublisher.publish(PROGRESS_CHANNEL, JSON.stringify({ requestId, status, completed }));
+async function publishProgress(requestId: string, status: ProgressStatus, completed: number = 0, startEvent:boolean=false): Promise<void> {
+    await progressPublisher.publish(PROGRESS_CHANNEL, JSON.stringify({ requestId, status, completed, startEvent}));
 }
 
 export function createQrGenerationWorker(): Worker<{ requestId: string }> {
@@ -23,7 +23,7 @@ export function createQrGenerationWorker(): Worker<{ requestId: string }> {
         env.QR_JOB_QUEUE_NAME,
         async (job: Job<{ requestId: string }>) => {
             logger.info({ jobId: job.id, data: job.data }, "Processing QR generation job");
-            await publishProgress(job.data.requestId, "PROCESSING");
+            await publishProgress(job.data.requestId, "PROCESSING",0,true);
             await processRequest(job.data.requestId,publishProgress);
 
         },

@@ -9,6 +9,7 @@ export interface ProgressEvent {
 	requestId: string;
 	status: ProgressStatus;
 	completed: number;
+	startEvent: boolean;
 }
 
 const API_URL = env.PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -60,5 +61,15 @@ export function onConnectionChange(callback: (connected: boolean) => void): () =
 	return () => {
 		socket.off('connect', handleConnect);
 		socket.off('disconnect', handleDisconnect);
+	};
+}
+
+export function onOperatorEvent(callback: (event: ProgressEvent) => void): () => void {
+	const socket = getSocket();
+
+	socket.on('operator', callback);
+
+	return () => {
+		socket.off('operator', callback);
 	};
 }

@@ -91,7 +91,7 @@ export class ServiceRequestsService extends BaseService {
 		return this.client.buildUrl(`${this.basePath}/${id}/items/${itemId}/image`);
 	}
 
-	getZipDownloadUrl(id: string,): string {
+	getZipDownloadUrl(id: string): string {
 		return this.client.buildUrl(`${this.basePath}/${id}/download`);
 	}
 }

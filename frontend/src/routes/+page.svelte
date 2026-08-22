@@ -3,6 +3,7 @@
 	import WifiIcon from '@lucide/svelte/icons/wifi';
 	import WifiOffIcon from '@lucide/svelte/icons/wifi-off';
 	import ServerIcon from '@lucide/svelte/icons/server';
+	import { resolve } from '$app/paths';
 	import { onConnectionChange, subscribeToRequest, type ProgressEvent } from '$lib/socket';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
@@ -59,11 +60,13 @@
 			} else {
 				toast.error(cancel.message);
 			}
-		} catch (e) {
+		} catch {
 			toast.error('Somthing Went Wrong');
 		}
 	};
 </script>
+
+<svelte:head><title>Heavenlyqr</title></svelte:head>
 
 <div class="mx-auto flex max-w-xl flex-col gap-4 p-8">
 	<Card.Root>
@@ -98,6 +101,13 @@
 			</Badge>
 		</Card.Content>
 	</Card.Root>
+
+	<a
+		href={resolve('/operator')}
+		class="text-sm text-muted-foreground hover:text-foreground hover:underline"
+	>
+		View all service requests →
+	</a>
 
 	<Card.Root>
 		<Card.Header>
@@ -162,6 +172,7 @@
 					</div>
 
 					<div class="flex justify-center pt-2">
+						<!-- eslint-disable svelte/no-navigation-without-resolve -- external backend URL, not a SvelteKit route -->
 						<a
 							href={api.serviceRequests.getZipDownloadUrl(task!.id)}
 							download
@@ -169,6 +180,7 @@
 						>
 							Download ZIP
 						</a>
+						<!-- eslint-enable svelte/no-navigation-without-resolve -->
 					</div>
 				{/if}
 			</Card.Content>
