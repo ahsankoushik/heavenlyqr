@@ -15,7 +15,7 @@ const API_URL = env.PUBLIC_API_URL ?? 'http://localhost:4000';
 
 let socket: Socket | undefined;
 
-// single conn 
+// single conn
 function getSocket(): Socket {
 	if (!browser) {
 		throw new Error('getSocket() is browser-only (no WebSocket during SSR)');
