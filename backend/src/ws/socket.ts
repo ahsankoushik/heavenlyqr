@@ -4,6 +4,7 @@ import { Server as SocketIOServer } from "socket.io";
 import { createRedisConnection } from "../config/redis.js";
 import { logger } from "../config/logger.js";
 import { env } from "../config/env.js";
+import type { ProgressStatus } from "../types/progressStatus.js";
 
 export const PROGRESS_CHANNEL = "service-requests:progress";
 
@@ -34,7 +35,7 @@ export function initSocketServer(httpServer: HttpServer): SocketIOServer {
     void subscriber.subscribe(PROGRESS_CHANNEL);
 
     subscriber.on("message", (_channel, message) => {
-        const progress = JSON.parse(message) as { requestId: string, completed: number };
+        const progress = JSON.parse(message) as { requestId: string; status: ProgressStatus; completed: number };
         io.to(`request:${progress.requestId}`).emit("progress", progress);
     });
 

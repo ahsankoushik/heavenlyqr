@@ -18,6 +18,10 @@ export async function removeQueuedJob(requestId: string): Promise<boolean> {
     if (!job) return false;
     if (await job.isActive()) return false;
 
-    await job.remove();
-    return true;
+    try {
+        await job.remove();
+        return true;
+    } catch {
+        return false;
+    }
 }
