@@ -1,4 +1,4 @@
-
+import fs from "node:fs";
 import path from "node:path";
 import type { Request, Response } from "express";
 import type {
@@ -11,6 +11,7 @@ import type {
 import { prisma } from "../config/db.js";
 import { qrGenerationQueue, removeQueuedJob } from "../queues/qr.queue.js";
 import { ApiError } from "../utils/ApiError.js";
+import { env } from "../config/env.js";
 
 
 
@@ -108,6 +109,33 @@ export async function getServiceRequestItems(_req: Request, res: Response): Prom
     });
 }
 
+export async function downloadRequestZip(
+    req: Request,
+    res: Response,
+): Promise<void> {
+    const { id } = req.params as RequestIdParams;
+
+    const request = await prisma.serviceRequest.findUnique({
+        where: { id },
+        select: { status: true },
+    });
+
+    if (!request) {
+        throw ApiError.notFound("Service request not found");
+    }
+
+    if (!["COMPLETED", "PARTIALLY_FAILED", "FAILED"].includes(request.status)) {
+        throw ApiError.conflict("ZIP file is not ready yet");
+    }
+
+    const zipPath = path.resolve(env.STORAGE_DIR, `${id}.zip`);
+
+    if (!fs.existsSync(zipPath)) {
+        throw ApiError.notFound("ZIP file not found");
+    }
+
+    res.download(zipPath, `${id}.zip`);
+}
 
 export async function downloadQrItemImage(_req: Request, res: Response): Promise<void> {
     const { id, itemId } = _req.params as unknown as RequestItemParams;

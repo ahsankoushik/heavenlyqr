@@ -15,6 +15,7 @@ import {
     getServiceRequestItems,
     downloadQrItemImage,
     cancelServiceRequest,
+    downloadRequestZip,
 } from "../controllers/service.controller.js";
 
 
@@ -25,6 +26,7 @@ export const serviceRouter = Router()
 serviceRouter.post("/requests", validateRequest({ body: createServiceRequestSchema }), asyncHandler(createServiceRequst))
 serviceRouter.get("/requests", validateRequest({ query: listServiceRequestsQuerySchema }), asyncHandler(getServiceRequests))
 serviceRouter.get("/requests/:id", validateRequest({ params: requestIdParamsSchema }), asyncHandler(getServiceRequest))
+serviceRouter.get("/requests/:id/download", validateRequest({ params: requestIdParamsSchema }), asyncHandler(downloadRequestZip));
 serviceRouter.get("/requests/:id/items", validateRequest({ params: requestIdParamsSchema, query: listQrItemsQuerySchema }), asyncHandler(getServiceRequestItems))
 serviceRouter.get("/requests/:id/items/:itemId/image", validateRequest({ params: requestItemParamsSchema }), asyncHandler(downloadQrItemImage))
 serviceRouter.post("/requests/:id/cancel", validateRequest({ params: requestIdParamsSchema }), asyncHandler(cancelServiceRequest))

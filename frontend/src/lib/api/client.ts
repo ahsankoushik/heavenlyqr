@@ -90,6 +90,10 @@ export class ServiceRequestsService extends BaseService {
 	itemImageUrl(id: string, itemId: number): string {
 		return this.client.buildUrl(`${this.basePath}/${id}/items/${itemId}/image`);
 	}
+
+	getZipDownloadUrl(id: string,): string {
+		return this.client.buildUrl(`${this.basePath}/${id}/download`);
+	}
 }
 
 export class HealthService extends BaseService {
@@ -102,10 +106,6 @@ export class ApiClient {
 	readonly baseUrl: string;
 	private readonly fetchFn: typeof fetch;
 
-	// fetchFn defaults to the global fetch (fine in the browser or a
-	// standalone script), but server code should always pass SvelteKit's
-	// event.fetch instead — see hooks.server.ts, which is what puts this
-	// client on event.locals in the first place.
 	constructor(baseUrl?: string, fetchFn?: typeof fetch) {
 		const resolved = baseUrl ?? env.PUBLIC_API_URL ?? DEFAULT_BASE_URL;
 		this.baseUrl = resolved.replace(/\/+$/, '');
