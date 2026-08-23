@@ -138,7 +138,7 @@
 				params.set(key, value);
 			}
 		}
-		void goto(resolve(`/operator/${request.id}?${params}`), { keepFocus: true });
+		void goto(resolve(`/supervisor/${request.id}?${params}`), { keepFocus: true });
 	}
 
 	function goToPage(newPage: number): void {
@@ -154,7 +154,7 @@
 
 <div class="mx-auto flex max-w-5xl flex-col gap-4 p-8">
 	<a
-		href={resolve('/operator')}
+		href={resolve('/supervisor')}
 		class="inline-flex w-fit items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
 	>
 		<ArrowLeftIcon class="size-3.5" />

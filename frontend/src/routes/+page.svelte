@@ -103,7 +103,7 @@
 	</Card.Root>
 
 	<a
-		href={resolve('/operator')}
+		href={resolve('/supervisor')}
 		class="text-sm text-muted-foreground hover:text-foreground hover:underline"
 	>
 		View all service requests →

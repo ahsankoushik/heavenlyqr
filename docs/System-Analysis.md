@@ -6,7 +6,7 @@ domain: an operator submits a **URL + an ID range**, the system generates one
 QR code per ID in that range as a background batch job, and supervisors watch
 the batch progress live.
 
-Why qr back in the when i was starting in this field i did a project name 
+Why qr? Back in the day, when i was starting in this field i did a project name 
 QR-Bee which had a simillar problem. Due to lack of knowladge and experience 
 build a system which we are not proud of, we talk about how we should have 
 made the system. So now i am trying to make it bit better.
@@ -36,28 +36,19 @@ authentication/authorization being out of scope for this submission.
 
 ### Assumptions
 
-1. **No authentication/authorization in this submission.** Operator and
-   Supervisor are UI-level distinctions (what a screen shows), not enforced
-   permission boundaries. Anyone with access to the app can submit,
-   view, and cancel any request. Role-based access control is listed as a
-   bonus item in the assignment and is called out here as a known gap, not
-   an oversight.
-2. **A "QR code" encodes one URL variant per ID.** The system does not
-   assume what the ID means to the business (a product SKU, a ticket
-   number, a coupon code, ...) it treats it as an opaque integer that
-   gets combined with the base URL. The exact encoding format
-   (`{url}/{id}` vs `{url}?id={id}`) is a construction detail, not a
-   constraint the API enforces.
-3. **A request is a fixed-size batch, not an open-ended stream.** The ID
-   range is bounded at request-creation time (capped, see FR-13). 
-   operators cannot append IDs to an already-created request.
-4. **Single-region, single-deployment scale.** The design targets one
-   organization's internal tool, not multi-tenant SaaS this shapes the
-   Non-Functional Requirements below. 
-5. **Generated QR images are stored server-side** and served back through
-   the API, rather than generated on-the-fly in the browser this is what
-   makes the workload worth putting on a background worker in the first
-   place.
+- **No authentication/authorization.** Operator vs. Supervisor is a UI-level
+  distinction (what a screen shows), not an enforced permission boundary.
+  Anyone with access can submit, view, and cancel any request. Explicitly
+  out of scope for this submission.
+- **A "QR code" encodes one URL variant per ID** the system treats the ID
+  as an opaque integer combined with the base URL (`{url}/{id}`); it doesn't
+  assume what the ID means to the business.
+- **A request is a fixed-size batch, not an open-ended stream.** The ID
+  range is capped at 5,000 IDs and fixed at creation time.
+- **Single-region, single-deployment scale** — not multi-tenant SaaS.
+- **Generated QR images are stored server-side** (a shared volume between
+  the API and worker containers) and served back through the API, rather
+  than generated client-side.
 
 ### Scope
 
@@ -97,12 +88,11 @@ intentionally deferred rather than half-implemented.
 | Requirement | Applies? | Justification |
 |---|---|---|
 | **Performance** | Yes | `POST /service-requests` must return quickly regardless of range size — it persists + enqueues, it never generates inline. This is the entire reason generation is pushed to a worker (FR-14). |
-| **Scalability** | Yes | Load is dominated by generation work, not request volume. The worker is a separate horizontally-scalable process (`docker-compose.yml`'s `worker` service) — add replicas or raise `WORKER_CONCURRENCY` to absorb bigger batches without touching the API. |
+| **Scalability** | Yes | Load is dominated by generation work, not request volume. The worker is a separate horizontally-scalable process (`docker-compose.yml`'s `worker` service). Add replicas or raise `WORKER_CONCURRENCY` to absorb bigger batches without touching the API. |
 | **Reliability** | Yes | Jobs use BullMQ retry with exponential backoff (3 attempts) rather than failing an item permanently on a transient error; a request's status only reaches a terminal state once every item has resolved. |
-| **Security** | Partial | Input validation (zod, all layers) and standard hardening (Helmet headers, CORS allowlist, Prisma parameterized queries — no raw SQL) are in scope. Authentication/authorization and rate limiting are explicitly **not** — see Assumptions. Treated as partial rather than N/A because "no auth" is a scoping decision, not a claim that security doesn't apply. |
-| **Maintainability** | Yes | Layered architecture (routes → controllers → services → repositories), one validation convention (zod schema + `validateRequest` middleware), one response envelope, strict TypeScript, ESLint/Prettier — chosen specifically so a reviewer or a future contributor doesn't have to learn a different pattern per file. |
-| **Availability** | Yes, at single-instance scope | Docker Compose healthchecks gate service startup order; both the listener and worker handle `SIGTERM`/`SIGINT` for graceful shutdown. Multi-instance failover/HA is out of scope (see Assumptions — single-deployment target). |
+| **Security** | Partial | Input validation (zod, all layers) and standard hardening (Helmet headers, CORS allowlist, Prisma parameterized queries means no raw SQL) are in scope. Authentication/authorization and rate limiting are explicitly **not**. Treated as partial rather than N/A because "no auth" is a scoping decision, not a claim that security doesn't apply. |
+| **Maintainability** | Yes | Layered architecture (routes → controllers → services), one validation convention (zod schema + `validateRequest` middleware), one response envelope, strict TypeScript, ESLint/Prettier chosen specifically so a reviewer or a future contributor doesn't have to learn a different pattern per file. |
+| **Availability** | Yes, at single-instance scope | Docker Compose healthchecks gate service startup order; both the listener and worker handle `SIGTERM`/`SIGINT` for graceful shutdown. Multi-instance failover/HA is out of scope |
 | **Usability** | Yes | Form validation mirrors backend rules client-side before submit; request status is visible without a manual refresh; errors surface the same `message`/`details` shape the API returns, not a generic failure. |
 | **Responsiveness (UI)** | Yes | Tailwind-based responsive layout (mobile → desktop) using shadcn-svelte components; live state updates arrive over WebSocket, so the UI reflects worker progress within about a second rather than on the next poll/refresh. |
 
-Tw

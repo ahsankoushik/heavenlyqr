@@ -63,12 +63,12 @@ export function onConnectionChange(callback: (connected: boolean) => void): () =
 	};
 }
 
-export function onOperatorEvent(callback: (event: ProgressEvent) => void): () => void {
+export function onSupervisorEvent(callback: (event: ProgressEvent) => void): () => void {
 	const socket = getSocket();
 
-	socket.on('operator', callback);
+	socket.on('supervisor', callback);
 
 	return () => {
-		socket.off('operator', callback);
+		socket.off('supervisor', callback);
 	};
 }

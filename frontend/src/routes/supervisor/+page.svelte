@@ -19,7 +19,7 @@
 	} from '$lib/api/types.js';
 	import {
 		onConnectionChange,
-		onOperatorEvent,
+		onSupervisorEvent,
 		subscribeToRequest,
 		type ProgressEvent
 	} from '$lib/socket.js';
@@ -112,7 +112,7 @@
 				params.set(key, value);
 			}
 		}
-		void goto(resolve(`/operator?${params}`), { keepFocus: true });
+		void goto(resolve(`/supervisor?${params}`), { keepFocus: true });
 	}
 
 	function goToPage(newPage: number): void {
@@ -139,7 +139,7 @@
 	}
 
 	$effect(() => {
-		return onOperatorEvent(async (event: ProgressEvent) => {
+		return onSupervisorEvent(async (event: ProgressEvent) => {
 			if (requests.some((row) => row.id === event.requestId)) return;
 
 			pagination = {
@@ -180,7 +180,7 @@
 	});
 </script>
 
-<svelte:head><title>Operator — HeavenlyQR</title></svelte:head>
+<svelte:head><title>Supervisor — HeavenlyQR</title></svelte:head>
 
 <div class="mx-auto flex max-w-5xl flex-col gap-4 p-8">
 	<a
@@ -279,7 +279,7 @@
 								<Table.Row>
 									<Table.Cell class="max-w-64 truncate font-medium">
 										<a
-											href={resolve('/operator/[id]', { id: request.id })}
+											href={resolve('/supervisor/[id]', { id: request.id })}
 											title={request.url}
 											class="hover:underline"
 										>
@@ -313,7 +313,7 @@
 											variant="outline"
 											size="sm"
 											class="gap-1.5"
-											href={resolve('/operator/[id]', { id: request.id })}
+											href={resolve('/supervisor/[id]', { id: request.id })}
 										>
 											<EyeIcon class="size-3.5" />
 											View

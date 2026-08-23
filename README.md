@@ -7,6 +7,7 @@ the batch progress live over WebSockets — no polling, no page refreshes.
 
 Full problem statement, functional/non-functional requirements, and design
 rationale: [`docs/System-Analysis.md`](docs/System-Analysis.md).
+Also view: [`docs/System-Design.md`](docs/System-Design.md)]
 
 ## Setup Instructions (Build and run)
 
@@ -88,7 +89,7 @@ npm run start
 
 ## Architecture overview
 ![Architechture Overview](docs/Architechture.png)
-Users can use the system via browers and REST+WS(Socket.io) apis. Backend creates and pulls data from Postgres database using Prisma ORM also sends the services requests to queue service for the workers service to pick up. Here the queue service is made of BullMQ and Redis (easy native node solution). The worker services picks up the queued requests and creates qr as per instructions then zips them, lastly updates them in database and sends update via redis pub/sub. A listener listens to redis pub/sub then forwards the updates to the users and operators.
+Users can use the system via browers and REST+WS(Socket.io) apis. Backend creates and pulls data from Postgres database using Prisma ORM also sends the services requests to queue service for the workers service to pick up. Here the queue service is made of BullMQ and Redis (easy native node solution). The worker services picks up the queued requests and creates qr as per instructions then zips them, lastly updates them in database and sends update via redis pub/sub. A listener listens to redis pub/sub then forwards the updates to the operators and supervisors.
 
 ## Technology stack 
 
@@ -128,7 +129,7 @@ View OpenAPI docs: [docs/api/openapi.yml](docs/api/openapi.yml) and [docs/api/in
 Socket.io web sockets used. (Same url as the backend)
 | Event | Purpose |
 | --- | --- |
-| `operator` | Server updates the operator of newly created service requests |
+| `supervisor` | Server notifies supervisors of newly created service requests |
 | `progress` | Server sends progress to certain request ids subscribed via sending the request id to `request:<requestid>` |
 
 
