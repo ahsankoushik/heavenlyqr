@@ -1,5 +1,7 @@
 /backend/.env
 /backend/node_modules
-/backend/prisma/migrations
 /backend/storage
 /backend/dist
+
+# .env at the repo root drives docker-compose.yml
+/.env
