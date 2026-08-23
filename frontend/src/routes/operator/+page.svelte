@@ -1,7 +1,9 @@
 <script lang="ts">
 	import XIcon from '@lucide/svelte/icons/x';
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
+	import ArrowUpDownIcon from '@lucide/svelte/icons/arrow-up-down';
 	import EyeIcon from '@lucide/svelte/icons/eye';
+	import SearchIcon from '@lucide/svelte/icons/search';
 	import WifiIcon from '@lucide/svelte/icons/wifi';
 	import WifiOffIcon from '@lucide/svelte/icons/wifi-off';
 	import { goto } from '$app/navigation';
@@ -9,10 +11,11 @@
 	import { page } from '$app/state';
 	import { SvelteSet, SvelteURLSearchParams } from 'svelte/reactivity';
 	import { api } from '$lib/api/client.js';
-	import type {
-		Pagination as PaginationInfo,
-		RequestStatus,
-		ServiceRequestRecord
+	import {
+		REQUEST_STATUSES,
+		type Pagination as PaginationInfo,
+		type RequestStatus,
+		type ServiceRequestRecord
 	} from '$lib/api/types.js';
 	import {
 		onConnectionChange,
@@ -23,7 +26,9 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Pagination from '$lib/components/ui/pagination/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { toast } from 'svelte-sonner';
 	import type { PageData } from './$types';
@@ -32,6 +37,13 @@
 	let connected = $state(false);
 
 	const NON_TERMINAL: readonly RequestStatus[] = ['PENDING', 'PROCESSING'];
+
+	const SORT_OPTIONS = [
+		{ value: 'createdAt:desc', label: 'Newest first' },
+		{ value: 'createdAt:asc', label: 'Oldest first' },
+		{ value: 'updatedAt:desc', label: 'Recently updated' },
+		{ value: 'updatedAt:asc', label: 'Least recently updated' }
+	] as const;
 
 	const STATUS_VARIANT: Record<RequestStatus, 'default' | 'secondary' | 'destructive' | 'outline'> =
 		{
@@ -45,6 +57,7 @@
 
 	let requests = $state<ServiceRequestRecord[]>(data.requests);
 	let pagination = $state<PaginationInfo>(data.pagination);
+	let searchInput = $state(data.filters.search ?? '');
 	const cancellingIds = new SvelteSet<string>();
 	$effect(() => {
 		return onConnectionChange((value) => {
@@ -55,6 +68,7 @@
 	$effect(() => {
 		requests = data.requests;
 		pagination = data.pagination;
+		searchInput = data.filters.search ?? '';
 	});
 
 	function formatDate(iso: string): string {
@@ -89,10 +103,39 @@
 		}
 	}
 
-	function goToPage(newPage: number): void {
+	function updateQuery(next: Record<string, string | undefined>): void {
 		const params = new SvelteURLSearchParams(page.url.searchParams);
-		params.set('page', String(newPage));
+		for (const [key, value] of Object.entries(next)) {
+			if (value === undefined) {
+				params.delete(key);
+			} else {
+				params.set(key, value);
+			}
+		}
 		void goto(resolve(`/operator?${params}`), { keepFocus: true });
+	}
+
+	function goToPage(newPage: number): void {
+		updateQuery({ page: String(newPage) });
+	}
+
+	function submitSearch(event: SubmitEvent): void {
+		event.preventDefault();
+		updateQuery({ search: searchInput.trim() || undefined, page: undefined });
+	}
+
+	function clearSearch(): void {
+		searchInput = '';
+		updateQuery({ search: undefined, page: undefined });
+	}
+
+	function setStatusFilter(value: string): void {
+		updateQuery({ status: value === 'ALL' ? undefined : value, page: undefined });
+	}
+
+	function setSort(value: string): void {
+		const [sortBy, sortOrder] = value.split(':');
+		updateQuery({ sortBy, sortOrder, page: undefined });
 	}
 
 	$effect(() => {
@@ -110,7 +153,10 @@
 			try {
 				const { data: record } = await api.serviceRequests.getOne(event.requestId);
 				requests = [record, ...requests].slice(0, pagination.limit);
-			} catch {}
+			} catch {
+				// Request may already be gone (e.g. cancelled+cleaned up) by the
+				// time this fetch lands — not worth surfacing.
+			}
 		});
 	});
 
@@ -164,8 +210,58 @@
 			</Card.Description>
 		</Card.Header>
 		<Card.Content>
+			<form onsubmit={submitSearch} class="mb-4 flex flex-wrap items-center gap-2">
+				<div class="relative min-w-48 flex-1">
+					<SearchIcon
+						class="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground"
+					/>
+					<Input type="search" placeholder="Search by URL…" class="pl-8" bind:value={searchInput} />
+				</div>
+				{#if data.filters.search}
+					<Button type="button" variant="ghost" size="sm" onclick={clearSearch}>Clear</Button>
+				{/if}
+
+				<Select.Root
+					type="single"
+					value={data.filters.status ?? 'ALL'}
+					onValueChange={setStatusFilter}
+				>
+					<Select.Trigger size="sm">
+						{data.filters.status ?? 'All statuses'}
+					</Select.Trigger>
+					<Select.Content>
+						<Select.Item value="ALL">All statuses</Select.Item>
+						{#each REQUEST_STATUSES as statusOption (statusOption)}
+							<Select.Item value={statusOption}>{statusOption}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+
+				<Select.Root
+					type="single"
+					value={`${data.filters.sortBy}:${data.filters.sortOrder}`}
+					onValueChange={setSort}
+				>
+					<Select.Trigger size="sm" class="gap-1.5">
+						<ArrowUpDownIcon class="size-3.5 text-muted-foreground" />
+						{SORT_OPTIONS.find(
+							(option) => option.value === `${data.filters.sortBy}:${data.filters.sortOrder}`
+						)?.label ?? 'Sort'}
+					</Select.Trigger>
+					<Select.Content>
+						{#each SORT_OPTIONS as option (option.value)}
+							<Select.Item value={option.value}>{option.label}</Select.Item>
+						{/each}
+					</Select.Content>
+				</Select.Root>
+			</form>
+
 			{#if requests.length === 0}
-				<p class="py-8 text-center text-sm text-muted-foreground">No service requests yet.</p>
+				<p class="py-8 text-center text-sm text-muted-foreground">
+					{data.filters.search || data.filters.status
+						? 'No service requests match your filters.'
+						: 'No service requests yet.'}
+				</p>
 			{:else}
 				<div class="overflow-x-auto">
 					<Table.Root>

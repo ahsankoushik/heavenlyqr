@@ -163,3 +163,17 @@ export async function processRequest(requestId: string, onProgress: (requestId: 
     });
     await onProgress(requestId, finalStatus === "COMPLETED" ? "COMPLETED" : "FAILED", done);
 }
+
+
+
+export async function qrJobFailed(requestId: string): Promise<void> {
+    try {
+        const serviceRequest = await prisma.serviceRequest.findUniqueOrThrow({ where: { id: requestId } })
+        await prisma.serviceRequest.update({
+            where: { id: serviceRequest.id },
+            data: { status: serviceRequest.completedItems > 0 ? "PARTIALLY_FAILED" : "FAILED" }
+        });
+    } catch (error) {
+        logger.error({ err: error, requestId }, "Failed to persist FAILED status after job exhausted retries");
+    }
+}

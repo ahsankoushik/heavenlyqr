@@ -4,7 +4,7 @@ import { env } from "../config/env.js";
 import { logger } from "../config/logger.js";
 import { createRedisConnection } from "../config/redis.js";
 import { PROGRESS_CHANNEL } from "../ws/socket.js";
-import { processRequest } from "../services/qrgeneration.service.js";
+import { processRequest, qrJobFailed } from "../services/qrgeneration.service.js";
 import { ProgressStatus } from "../types/progressStatus.js";
 
 export const progressPublisher = createRedisConnection("pubsub:progress:publisher");
@@ -39,11 +39,16 @@ export function createQrGenerationWorker(): Worker<{ requestId: string }> {
     });
 
     worker.on("failed", (job, err) => {
-
-        if (job) {
-            void publishProgress(job.data.requestId, "FAILED");
-        }
         logger.error({ jobId: job?.id, err }, "Job failed");
+
+        if (!job) return;
+
+        // wait for the max attempts
+        const maxAttempts = job.opts.attempts ?? 1;
+        if (job.attemptsMade < maxAttempts) return;
+
+        void publishProgress(job.data.requestId, "FAILED");
+        void qrJobFailed(job.data.requestId);
     });
 
     return worker;
