@@ -1,0 +1,27 @@
+erDiagram
+    SERVICE_REQUEST ||--o{ QR_ITEM : "fans out into"
+
+    SERVICE_REQUEST {
+        string id PK
+        string url
+        int idRangeStart
+        int idRangeEnd
+        enum status "PENDING | PROCESSING | COMPLETED | PARTIALLY_FAILED | FAILED | CANCELLED"
+        int totalItems
+        int completedItems
+        int failedItems
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    QR_ITEM {
+        string id PK
+        int itemId
+        enum status "PENDING | PROCESSING | COMPLETED | FAILED | CANCELLED"
+        string imagePath "nullable"
+        string errorMessage "nullable"
+        int attempts
+        string serviceRequestId FK
+        datetime createdAt
+        datetime updatedAt
+    }
