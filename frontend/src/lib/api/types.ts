@@ -9,7 +9,15 @@ export const REQUEST_STATUSES = [
 
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
-export type QrItemStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+export const QR_ITEM_STATUSES = [
+	'PENDING',
+	'PROCESSING',
+	'COMPLETED',
+	'FAILED',
+	'CANCELLED'
+] as const;
+
+export type QrItemStatus = (typeof QR_ITEM_STATUSES)[number];
 
 export interface ServiceRequestRecord {
 	id: string;

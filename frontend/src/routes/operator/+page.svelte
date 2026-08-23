@@ -1,6 +1,7 @@
 <script lang="ts">
 	import XIcon from '@lucide/svelte/icons/x';
 	import ArrowLeftIcon from '@lucide/svelte/icons/arrow-left';
+	import EyeIcon from '@lucide/svelte/icons/eye';
 	import WifiIcon from '@lucide/svelte/icons/wifi';
 	import WifiOffIcon from '@lucide/svelte/icons/wifi-off';
 	import { goto } from '$app/navigation';
@@ -109,8 +110,7 @@
 			try {
 				const { data: record } = await api.serviceRequests.getOne(event.requestId);
 				requests = [record, ...requests].slice(0, pagination.limit);
-			} catch {
-			}
+			} catch {}
 		});
 	});
 
@@ -181,8 +181,14 @@
 						<Table.Body>
 							{#each requests as request (request.id)}
 								<Table.Row>
-									<Table.Cell class="max-w-64 truncate font-medium" title={request.url}>
-										{request.url}
+									<Table.Cell class="max-w-64 truncate font-medium">
+										<a
+											href={resolve('/operator/[id]', { id: request.id })}
+											title={request.url}
+											class="hover:underline"
+										>
+											{request.url}
+										</a>
 									</Table.Cell>
 									<Table.Cell>
 										<Badge variant={STATUS_VARIANT[request.status]}>{request.status}</Badge>
@@ -206,7 +212,16 @@
 									<Table.Cell class="text-sm text-muted-foreground">
 										{formatDate(request.createdAt)}
 									</Table.Cell>
-									<Table.Cell class="text-right">
+									<Table.Cell class="flex justify-end gap-2">
+										<Button
+											variant="outline"
+											size="sm"
+											class="gap-1.5"
+											href={resolve('/operator/[id]', { id: request.id })}
+										>
+											<EyeIcon class="size-3.5" />
+											View
+										</Button>
 										{#if NON_TERMINAL.includes(request.status)}
 											<Button
 												variant="outline"

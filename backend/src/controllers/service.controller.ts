@@ -12,6 +12,8 @@ import { prisma } from "../config/db.js";
 import { qrGenerationQueue, removeQueuedJob } from "../queues/qr.queue.js";
 import { ApiError } from "../utils/ApiError.js";
 import { env } from "../config/env.js";
+import { publishRequestCreated } from "../events/requestEvents.js";
+import { logger } from "../config/logger.js";
 
 
 
@@ -32,6 +34,11 @@ export async function createServiceRequst(_req: Request, res: Response): Promise
         await prisma.serviceRequest.delete({ where: { id: serviceRequest.id } });
         throw error;
     }
+
+    // update to frontend as soon as created
+    publishRequestCreated(serviceRequest.id).catch((err: unknown) => {
+        logger.error({ err, requestId: serviceRequest.id }, "Failed to publish request-created event");
+    });
 
     res.status(202).json({
         id: serviceRequest.id,

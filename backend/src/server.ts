@@ -5,10 +5,11 @@
 
 import { createServer } from "http";
 import { createApp } from "./app.js";
-import { env } from "process";
+import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { connectDatabase, disconnectDatabase } from "./config/db.js";
 import { initSocketServer } from "./ws/socket.js";
+import { closeRequestEventsPublisher } from "./events/requestEvents.js";
 
 
 async function main(): Promise<void> {
@@ -28,6 +29,7 @@ async function main(): Promise<void> {
         logger.info({ signal }, "Shutting down API listener...");
         io.close();
         httpServer.close();
+        await closeRequestEventsPublisher();
         await disconnectDatabase();
         process.exit(0);
     };

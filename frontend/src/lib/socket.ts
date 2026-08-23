@@ -2,8 +2,7 @@ import { browser } from '$app/environment';
 import { env } from '$env/dynamic/public';
 import { io, type Socket } from 'socket.io-client';
 
-// Matches backend/src/types/progressStatus.ts — the terminal-ish states a
-export type ProgressStatus = 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+export type ProgressStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 
 export interface ProgressEvent {
 	requestId: string;

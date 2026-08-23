@@ -1,7 +1,7 @@
 import { REQUEST_STATUSES, type ListResult, type ServiceRequestRecord } from '$lib/api/types.js';
 import type { PageServerLoad } from './$types';
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 50;
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const pageParam = Number(url.searchParams.get('page'));
