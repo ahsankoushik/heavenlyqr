@@ -1,0 +1,606 @@
+openapi: 3.0.0
+info:
+  title: heavenlyqr
+  version: 1.0.0
+  description: >-
+    Bulk QR-code generation service: submit a URL + numeric ID range, poll
+    the resulting service request, then download the generated images.
+servers:
+  - url: 'http://localhost:{port}'
+    variables:
+      port:
+        default: '4000'
+security: []
+paths:
+  /api/v1/health/check:
+    get:
+      tags:
+        - General
+      operationId: getHealthCheck
+      summary: Get Health
+      responses:
+        '200':
+          description: All dependencies are reachable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              example:
+                status: ok
+                uptimeSeconds: 5199.75718462
+                dependencies:
+                  database: up
+                  redis: up
+        '503':
+          description: >-
+            Degraded. Returned with the same body shape when the database
+            and/or Redis ping fails.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+              example:
+                status: degraded
+                uptimeSeconds: 5199.75718462
+                dependencies:
+                  database: up
+                  redis: down
+  /api/v1/service/requests:
+    post:
+      tags:
+        - General
+      operationId: createServiceRequest
+      summary: Create Service Request
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - url
+                - idRangeStart
+                - idRangeEnd
+              properties:
+                url:
+                  type: string
+                  format: uri
+                idRangeStart:
+                  type: integer
+                  minimum: 0
+                idRangeEnd:
+                  type: integer
+                  minimum: 0
+                  description: >-
+                    Must be >= idRangeStart. The range (idRangeEnd -
+                    idRangeStart + 1) cannot exceed 5000 items.
+              example:
+                url: https://imkoushik.me/products/
+                idRangeStart: 65849
+                idRangeEnd: 65860
+      responses:
+        '202':
+          description: >-
+            Accepted. The request is persisted and a QR generation job is
+            queued; work happens asynchronously.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceRequestCreated'
+              example:
+                id: 9b1c0372-0eb8-49c6-8a6f-e46f947b83e1
+                url: https://imkoushik.me/products/
+                idRangeStart: 65849
+                idRangeEnd: 65860
+                status: PENDING
+                totalItems: 12
+                createdAt: '2026-08-24T09:15:32.104Z'
+        '400':
+          description: Validation failed (bad body, or range/URL constraints violated)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalidUrl:
+                  summary: url is not a valid URL
+                  value:
+                    error:
+                      message: Validation failed
+                      details:
+                        formErrors: []
+                        fieldErrors:
+                          url:
+                            - url must be a valid URL
+                rangeTooLarge:
+                  summary: Range exceeds the 5000-item limit
+                  value:
+                    error:
+                      message: Validation failed
+                      details:
+                        formErrors: []
+                        fieldErrors:
+                          idRangeEnd:
+                            - Range cannot exceed 5000 IDs
+                rangeInverted:
+                  summary: idRangeEnd is before idRangeStart
+                  value:
+                    error:
+                      message: Validation failed
+                      details:
+                        formErrors: []
+                        fieldErrors:
+                          idRangeEnd:
+                            - idRangeEnd must be greater than or equal to idRangeStart
+    get:
+      tags:
+        - General
+      operationId: getServiceRequestList
+      summary: Get Service Request List
+      parameters:
+        - name: page
+          in: query
+          description: 1-indexed page number.
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+        - name: limit
+          in: query
+          description: Page size.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
+        - name: status
+          in: query
+          description: Filter by request lifecycle status.
+          schema:
+            $ref: '#/components/schemas/RequestStatus'
+          example: COMPLETED
+        - name: search
+          in: query
+          description: Case-insensitive substring match against the request URL.
+          schema:
+            type: string
+            minLength: 1
+          example: imkoushik.me
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum:
+              - createdAt
+              - updatedAt
+            default: createdAt
+          example: createdAt
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum:
+              - asc
+              - desc
+            default: desc
+          example: desc
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServiceRequest'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+              example:
+                data:
+                  - id: 9b1c0372-0eb8-49c6-8a6f-e46f947b83e1
+                    url: https://imkoushik.me/products/
+                    idRangeStart: 65849
+                    idRangeEnd: 65860
+                    status: COMPLETED
+                    totalItems: 12
+                    completedItems: 12
+                    failedItems: 0
+                    createdAt: '2026-08-24T09:15:32.104Z'
+                    updatedAt: '2026-08-24T09:16:47.552Z'
+                pagination:
+                  page: 1
+                  limit: 20
+                  total: 1
+                  totalPages: 1
+        '400':
+          description: Query parameters failed validation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: Validation failed
+                  details:
+                    formErrors: []
+                    fieldErrors:
+                      status:
+                        - >-
+                          Invalid enum value. Expected 'PENDING' |
+                          'PROCESSING' | 'COMPLETED' | 'PARTIALLY_FAILED' |
+                          'FAILED' | 'CANCELLED', received 'BOGUS'
+  /api/v1/service/requests/9b1c0372-0eb8-49c6-8a6f-e46f947b83e1/cancel:
+    post:
+      tags:
+        - General
+      operationId: cancelServiceRequest
+      summary: Service Request Cancel
+      requestBody:
+        content: {}
+      responses:
+        '200':
+          description: >-
+            Cancelled. Message differs depending on whether the request was
+            still queued (PENDING) or already running (PROCESSING).
+          content:
+            application/json:
+              examples:
+                pending:
+                  summary: Request was PENDING (removed from queue)
+                  value:
+                    message: Request cancelled
+                    data:
+                      id: 9b1c0372-0eb8-49c6-8a6f-e46f947b83e1
+                      status: CANCELLED
+                processing:
+                  summary: Request was PROCESSING (in-flight items stop asynchronously)
+                  value:
+                    message: Cancellation requested; in-flight items are stopping
+                    data:
+                      id: 9b1c0372-0eb8-49c6-8a6f-e46f947b83e1
+                      status: CANCELLED
+        '404':
+          description: Service request not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: Service request not found
+        '409':
+          description: Request is already in a terminal state (not PENDING or PROCESSING)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: Request is already completed; nothing to cancel
+  /api/v1/service/requests/3a4867dd-0832-40ff-9154-55a5e5b6104f:
+    get:
+      tags:
+        - General
+      operationId: getServiceRequestById
+      summary: Get Service Request
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/ServiceRequest'
+              example:
+                data:
+                  id: 3a4867dd-0832-40ff-9154-55a5e5b6104f
+                  url: https://imkoushik.me/products/
+                  idRangeStart: 65849
+                  idRangeEnd: 65860
+                  status: PROCESSING
+                  totalItems: 12
+                  completedItems: 7
+                  failedItems: 0
+                  createdAt: '2026-08-24T09:15:32.104Z'
+                  updatedAt: '2026-08-24T09:16:47.552Z'
+        '404':
+          description: Service request not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: Service request not found
+  /api/v1/service/requests/3a4867dd-0832-40ff-9154-55a5e5b6104f/download:
+    get:
+      tags:
+        - General
+      operationId: downloadServiceRequestZip
+      summary: Service Request Zip Download
+      responses:
+        '200':
+          description: ZIP file stream containing the generated QR images.
+          content:
+            application/zip: {}
+        '404':
+          description: Service request not found, or the ZIP has not been written to disk
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                requestNotFound:
+                  summary: No such service request
+                  value:
+                    error:
+                      message: Service request not found
+                zipMissing:
+                  summary: Status allows a ZIP but the file isn't on disk
+                  value:
+                    error:
+                      message: ZIP file not found
+        '409':
+          description: Request hasn't finished processing yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: ZIP file is not ready yet
+  /api/v1/service/requests/3a4867dd-0832-40ff-9154-55a5e5b6104f/items:
+    get:
+      tags:
+        - General
+      operationId: getServiceRequestItems
+      summary: Get Service Request Items List
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          example: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
+        - name: status
+          in: query
+          description: Filter by item lifecycle status.
+          schema:
+            $ref: '#/components/schemas/QrItemStatus'
+          example: COMPLETED
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QrItem'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+              example:
+                data:
+                  - id: 5e2a3f10-6b2a-4b1e-9f0a-1e6e7e9c2b3d
+                    itemId: 65849
+                    status: COMPLETED
+                    imagePath: /storage/3a4867dd.../65849.png
+                    errorMessage: null
+                    attempts: 1
+                    serviceRequestId: 3a4867dd-0832-40ff-9154-55a5e5b6104f
+                    createdAt: '2026-08-24T09:15:32.200Z'
+                    updatedAt: '2026-08-24T09:15:40.812Z'
+                pagination:
+                  page: 1
+                  limit: 20
+                  total: 12
+                  totalPages: 1
+        '404':
+          description: Service request not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: Service request not found
+  /api/v1/service/requests/3a4867dd-0832-40ff-9154-55a5e5b6104f/items/65849/image:
+    get:
+      tags:
+        - General
+      operationId: getServiceRequestItemImage
+      summary: Get Service Request Item Image
+      responses:
+        '200':
+          description: The generated QR image file.
+          content:
+            image/png: {}
+        '404':
+          description: Item not found, or its status is COMPLETED but the file is missing on disk
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                itemNotFound:
+                  summary: No such item on this request
+                  value:
+                    error:
+                      message: QR item not found
+                fileMissing:
+                  summary: DB says COMPLETED but the file isn't on disk
+                  value:
+                    error:
+                      message: QR image file is missing on disk
+        '409':
+          description: Item exists but hasn't completed yet
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error:
+                  message: 'QR image is not ready yet (item status: pending)'
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+            - degraded
+        uptimeSeconds:
+          type: number
+          description: Process uptime in seconds (process.uptime()).
+        dependencies:
+          type: object
+          properties:
+            database:
+              type: string
+              enum:
+                - up
+                - down
+            redis:
+              type: string
+              enum:
+                - up
+                - down
+    RequestStatus:
+      type: string
+      description: Lifecycle status of a service request, transitioned by the worker.
+      enum:
+        - PENDING
+        - PROCESSING
+        - COMPLETED
+        - PARTIALLY_FAILED
+        - FAILED
+        - CANCELLED
+    QrItemStatus:
+      type: string
+      description: Lifecycle status of a single QR item within a request.
+      enum:
+        - PENDING
+        - PROCESSING
+        - COMPLETED
+        - FAILED
+        - CANCELLED
+    ServiceRequestCreated:
+      type: object
+      description: Shape returned by POST /api/v1/service/requests (subset of ServiceRequest).
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        idRangeStart:
+          type: integer
+        idRangeEnd:
+          type: integer
+        status:
+          $ref: '#/components/schemas/RequestStatus'
+        totalItems:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    ServiceRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        idRangeStart:
+          type: integer
+        idRangeEnd:
+          type: integer
+        status:
+          $ref: '#/components/schemas/RequestStatus'
+        totalItems:
+          type: integer
+        completedItems:
+          type: integer
+        failedItems:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    QrItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        itemId:
+          type: integer
+        status:
+          $ref: '#/components/schemas/QrItemStatus'
+        imagePath:
+          type: string
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+        attempts:
+          type: integer
+        serviceRequestId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        totalPages:
+          type: integer
+    Error:
+      type: object
+      description: >-
+        Uniform error envelope produced by the global error handler. `details`
+        is present for validation (Zod) errors and omitted otherwise.
+      properties:
+        error:
+          type: object
+          properties:
+            message:
+              type: string
+            details:
+              type: object
+              nullable: true
