@@ -78,7 +78,6 @@ services:
     build:
       context: ./backend
     image: heavenlyqr-backend:latest
-    container_name: heavenlyqr-worker
     restart: unless-stopped
     command: ["node", "dist/worker.js"]
     environment:

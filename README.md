@@ -1,5 +1,7 @@
 # HeavenlyQR
 
+A live deployment can be found on: [HeavenlyQR](https://qr.imkoushik.me) and [HeavenlyQR-API](https://qrapi.imkoushik.me/api/v1)
+
 A real-time service request management system, applied to a QR code generation
 domain: an operator submits a **URL + an ID range**, the system generates one
 QR code per ID in that range as a background batch job, and supervisors watch
